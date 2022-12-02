@@ -8,13 +8,12 @@
 
 typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::directedS> Graph;
 
-struct score_pair {
-  int id;
-  int score;
-};
-
-bool score_pair_less_than(struct score_pair const& a, struct score_pair const& b) {
-  return a.score < b.score;
+int set_sc(std::set<int> const& set, std::vector<int> const& scores) {
+  int res = 0;
+  for (auto v_it = set.begin(); v_it != set.end(); ++v_it) {
+    res += scores[*v_it];
+  }
+  return res;
 }
 
 bool intersect(std::set<int> const& a, std::set<int> const& b) {
@@ -123,38 +122,62 @@ void test_case() {
 
   std::vector<std::set<int>> subsets(n);
   std::vector<bool> visited(n);
-  std::vector<struct score_pair> subset_score(n, {0, 0});
 
   for (int i = 0; i < n; ++i) {
     compute_subset(i, subsets, visited, g);
-    subset_score[i].id = i;
     std::cout << "subsets[" << i << "]: {";
     for (auto v_it = subsets[i].begin(); v_it != subsets[i].end(); ++v_it) {
       std::cout << *v_it << " ";
-      subset_score[i].score += conv_score[*v_it];
     }
-    std::cout << "}, score: " << subset_score[i].score << std::endl;
+    std::cout << "}" << std::endl;
   }
 
-  std::sort(subset_score.rbegin(), subset_score.rend(), score_pair_less_than);
-
-  std::set<int> best_subset;
-  int score = 0;
+  std::set<int> candidates;
   for (int i = 0; i < n; ++i) {
-    std::cout << "checking subset " << subset_score[i].id << std::endl;
-
-    if (subset_score[i].score <= 0) {
-      break;
-    }
-
-    int v = subset_score[i].id;
-    if (intersect(best_subset, subsets[v])) {
-      continue;
-    }
-
-    score += subset_score[i].score;
-    best_subset.insert(subsets[v].begin(), subsets[v].end());
+    candidates.emplace_hint(candidates.end(), i);
   }
+
+  int score = 0;
+  while (candidates.size() > 0) {
+    int best_candidate_score = INT_MIN;
+    int best_candidate;
+    for (auto cand_it = candidates.begin(); cand_it != candidates.end(); ++cand_it) {
+      int candidate_score = set_sc(subsets[*cand_it], conv_score);
+      if (candidate_score > best_candidate_score) {
+        best_candidate_score = candidate_score;
+        best_candidate = *cand_it;
+      }
+    }
+
+    if (best_candidate_score <= 0)
+      break;
+
+    score += best_candidate_score;
+    std::set<int> best_set = subsets[best_candidate];
+    for (auto it = best_set.begin(); it != best_set.end(); ++it)
+      candidates.erase(*it);
+
+    for (auto cand_it = candidates.begin(); cand_it != candidates.end(); ++cand_it) {
+      for (auto best_it = best_set.begin(); best_it != best_set.end(); ++best_it)
+        subsets[*cand_it].erase(*best_it);
+    }
+  }
+
+  // for (int i = 0; i < n; ++i) {
+  //   std::cout << "checking subset " << subset_score[i].id << std::endl;
+
+  //   if (subset_score[i].score <= 0) {
+  //     break;
+  //   }
+
+  //   int v = subset_score[i].id;
+  //   if (intersect(best_subset, subsets[v])) {
+  //     continue;
+  //   }
+
+  //   score += subset_score[i].score;
+  //   best_subset.insert(subsets[v].begin(), subsets[v].end());
+  // }
 
   if (score == 0) {
     std::cout << "impossible" << std::endl;
