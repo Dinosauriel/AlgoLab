@@ -9,12 +9,17 @@ typedef boost::graph_traits<Graph>::edge_iterator edge_it;
 typedef boost::graph_traits<Graph>::out_edge_iterator out_edge_it;
 
 
-// struct vert_profile {
-//   int id;
-//   int tree_length;
-//   int tree_weight;
-//   int g;
-// };
+struct vert_profile {
+  unsigned long id;
+  int tree_length;
+  int tree_weight;
+  int g;
+};
+
+bool vert_profile_less_than(struct vert_profile const& a, struct vert_profile const& b) {
+  if (a.tree_weight == b.tree_weight) return a.tree_length < b.tree_length;
+  return (a.tree_length * b.tree_weight) < (b.tree_length * a.tree_weight);
+}
 
 int tree_weight(int v, std::vector<int> & TW, Graph const& graph) {
   int w = 1;
@@ -40,31 +45,28 @@ int tree_length(int v, std::vector<int> const& L, std::vector<int> & TL, Graph c
 long value(int v, int delay, std::vector<int> const& L, std::vector<int> const& TL, std::vector<int> const& TW, std::vector<int> const& G, Graph const& graph) {
   long val = G[v] - delay;
   
-  auto neighbours = boost::adjacent_vertices(v, graph);
-  std::set<int> candidates;
-  for (auto n_it = neighbours.first; n_it != neighbours.second; ++n_it)
-    candidates.insert(*n_it);
-    
-    
-  int w = TW[v] - 1;
-  while (candidates.size() > 0) {
+  auto adj = boost::adjacent_vertices(v, graph);
+  std::vector<struct vert_profile> N;
+  for (auto n_it = adj.first; n_it != adj.second; ++n_it) {
+    struct vert_profile profile {
+      *n_it,
+      TL[*n_it],
+      TW[*n_it],
+      G[*n_it]
+    };
+    N.push_back(profile);
+  }
 
-    // find the neighbour that will incur the least cost
-    long best_cost = LONG_MAX;
-    int u = 0;
-    for (auto c_it = candidates.begin(); c_it != candidates.end(); ++c_it) {
-      long cost = (w - TW[*c_it]) * 2 * TL[*c_it];
-      if (cost < best_cost) {
-        best_cost = cost;
-        u = *c_it;
-      }
-    }
-    
+  std::sort(N.begin(), N.end(), vert_profile_less_than);
+
+  int w = TW[v] - 1;
+  for (auto n_it = N.begin(); n_it != N.end(); ++n_it) {
+    int u = (*n_it).id;
+
     // std::cout << "value(" << v << ", " << delay << "): u = " 
     // << u << " with weight " << TW[u] << " and length " 
     // << TL[u] << " has best cost " << best_cost << std::endl;
 
-    candidates.erase(u);
     w -= TW[u];
     
     // calculate the value of the selected subtree
@@ -96,11 +98,17 @@ void testcase() {
     L[v] = l;
   }
   
+  // std::cout << "calculating length" << std::endl;
+
   std::vector<int> TL(n + 1);
   tree_length(0, L, TL, graph);
+
+  // std::cout << "calculating weight" << std::endl;
   
   std::vector<int> TW(n + 1);
   tree_weight(0, TW, graph);
+
+  // std::cout << "calculating value" << std::endl;
   
   std::cout << value(0, 0, L, TL, TW, G, graph) << std::endl;
 }
