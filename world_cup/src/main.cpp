@@ -6,6 +6,7 @@
 #include <CGAL/QP_functions.h>
 #include <CGAL/Gmpz.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Delaunay_triangulation_2.h>
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
 
@@ -17,6 +18,8 @@ typedef CGAL::Gmpz ET;
 // program and solution types
 typedef CGAL::Quadratic_program<IT> Program;
 typedef CGAL::Quadratic_program_solution<ET> Solution;
+
+typedef CGAL::Delaunay_triangulation_2<K> Triang;
 
 struct warehouse {
   K::Point_2 p;
@@ -46,8 +49,10 @@ void testcase() {
   std::vector<struct warehouse> w(n);
   std::vector<struct stadium> s(m);
   std::vector<std::vector<int>> r(n, std::vector<int>(m));
-  std::vector<K::Circle_2> l(c);
+  std::vector<K::Circle_2> l;
   
+  std::vector<K::Point_2> pts(n + m);
+
   for (int i = 0; i < n; ++i) {
     int x, y, s, a;
     std::cin >> x >> y >> s >> a;
@@ -55,7 +60,8 @@ void testcase() {
     w[i].p = K::Point_2(x, y);
     w[i].s = s;
     w[i].a = a;
-    
+
+    pts[i] = w[i].p;
     // std::cout << "w((" << w[i].p.x() << ", " << w[i].p.y() << "), " << w[i].s << ", " << w[i].a << ")" << std::endl; 
   }
   
@@ -66,6 +72,8 @@ void testcase() {
     s[i].p = K::Point_2(x, y);
     s[i].d = d;
     s[i].u = u;
+
+    pts[n + i] = s[i].p;
   }
   
   for (int i = 0; i < n; ++i) {
@@ -76,20 +84,25 @@ void testcase() {
    }
   }
   
+  Triang triang;
+  triang.insert(pts.begin(), pts.end());
+
   for (int i = 0; i < c; ++i) {
    int x, y, r;
    std::cin >> x >> y >> r;
    K::FT r_sq = (long) r * (long) r;
    K::Point_2 center = K::Point_2(x, y);
-   l[i] = K::Circle_2(center, r_sq);
+   
+   auto pt = triang.nearest_vertex(center)->point();
+   if (CGAL::squared_distance(center, pt) <= r_sq) {
+    l.push_back(K::Circle_2(center, r_sq));
+   } 
   }
 
   auto cp1 = std::chrono::steady_clock::now();
-  
-  //sort the circles by descending radius
-  //std::sort(l.rbegin(), l.rend(), circle_less_than);
+
   std::vector<std::vector<int>> t(n, std::vector<int>(m, 0));
-  for (int i = 0; i < c; ++i) {
+  for (size_t i = 0; i < l.size(); ++i) {
     for (int j = 0; j < n; ++j) {
       for (int k = 0; k < m; ++k) {
         if (l[i].has_on_bounded_side(w[j].p) != l[i].has_on_bounded_side(s[k].p)) {
@@ -99,34 +112,6 @@ void testcase() {
     }
   }
   auto cp2 = std::chrono::steady_clock::now();
-
-  
-  // elevation of the points
-  // std::vector<int> e_w(n, 0);
-  // std::vector<int> e_s(m, 0);
-  
-  // for (int i = 0; i < n; ++i) {
-  //   for (int j = 0; j < c; ++j) {
-  //     if (l[j].has_on_bounded_side(w[i].p)) {
-  //       e_w[i] += 1;
-  //     }
-  //   }
-  // }
-  
-  // for (int i = 0; i < m; ++i) {
-  //   for (int j = 0; j < c; ++j) {
-  //     if (l[j].has_on_bounded_side(s[i].p)) {
-  //       e_s[i] += 1;
-  //     }
-  //   }
-  // }
-  
-  // // elevation change
-  // for (int i = 0; i < n; ++i) {
-  //   for (int j = 0; j < m; ++j) {
-  //     t[i][j] = std::abs(e_w[i] - e_s[j]);
-  //   }
-  // }
   
   Program lp (CGAL::SMALLER, true, 0, false, 0);
   
@@ -181,9 +166,9 @@ void testcase() {
 
   auto cp3 = std::chrono::steady_clock::now();
 
-  std::cout << "read input: " << std::chrono::duration_cast<std::chrono::milliseconds>(cp1 - cp0).count() << "ms" << std::endl;
-  std::cout << "circles:    " << std::chrono::duration_cast<std::chrono::milliseconds>(cp2 - cp1).count() << "ms" << std::endl;
-  std::cout << "solve lp:   " << std::chrono::duration_cast<std::chrono::milliseconds>(cp3 - cp2).count() << "ms" << std::endl;
+  // std::cout << "read input: " << std::chrono::duration_cast<std::chrono::milliseconds>(cp1 - cp0).count() << "ms" << std::endl;
+  // std::cout << "circles:    " << std::chrono::duration_cast<std::chrono::milliseconds>(cp2 - cp1).count() << "ms" << std::endl;
+  // std::cout << "solve lp:   " << std::chrono::duration_cast<std::chrono::milliseconds>(cp3 - cp2).count() << "ms" << std::endl;
   
   if (sol.is_infeasible()) {
     std::cout << "RIOT!" << std::endl;
