@@ -1,5 +1,5 @@
 # Algorithms Lab 2022
-My solutions for the Algorithm Lab in the FS at ETH.
+My solutions for the Algorithm Lab in the FS 2022 at ETH.
 
 ## Usage
 ```
