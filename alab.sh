@@ -22,9 +22,9 @@ fi
 cd ..
 # clang++ -std=c++20 -Wno-deprecated-declarations $PROBLEM/src/main.cpp -o tmp/a.out
 echo "RUNNING..."
-time (cat problem/$PROBLEM/public/$TEST.in | tmp/a.out | tee tmp/run.out)
+time (cat problem/$PROBLEM/public/$TEST.in | tmp/a.out > >(tee tmp/run.out))
 echo "DIFF..."
-diff --color=auto problem/$PROBLEM/public/$TEST.out tmp/run.out
+diff --color=auto -w problem/$PROBLEM/public/$TEST.out tmp/run.out
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}${BOLD}correct answer!${NC}"
 else
