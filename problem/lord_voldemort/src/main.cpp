@@ -45,18 +45,18 @@ void testcase() {
     hoc[i][0] = 0;
   }
   
+  // the segment with the highest index that doesnt overlap with new_seg
+  int highest_compatible_seg = -1;
+  // highest_compatible_seg == -1 -> no compatible segment found
+
   for (int i = 1; i < s + 1; ++i) {
     struct seg new_seg = segments[i - 1];
     
-    // find the segment with the highest index that doesnt overlap with new_seg
-    int highest_compatible_seg = i - 1;
-    while (highest_compatible_seg >= 0 && segments[highest_compatible_seg].b >= new_seg.a) {
-      --highest_compatible_seg;
+    while (highest_compatible_seg + 1 < s && segments[highest_compatible_seg + 1].b < new_seg.a) {
+      ++highest_compatible_seg;
     }
-    
-    // highest_compatible_seg == -1 -> no compatible segment found
-    
-    for (int j = 1; j <= m; ++j) {
+
+    for (int j = 1; j <= std::min(m, i); ++j) {
       // either take new_seg or not
       int take;
       if (hoc[highest_compatible_seg + 1][j - 1] != -1) {
