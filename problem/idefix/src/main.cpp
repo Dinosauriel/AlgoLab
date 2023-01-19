@@ -64,12 +64,8 @@ int most_bones(int n, int m, K::FT s,
       bones_per_component[tree_component[nearest_tree[bone].first]] += 1;
     }
   }
-  
-  int m_bones = 0;
-  for (int i = 0; i < c; ++i) {
-    m_bones = std::max(m_bones, bones_per_component[i]);
-  }
-  return m_bones;
+
+  return *std::max_element(bones_per_component.begin(), bones_per_component.end());
 }
 
 void testcase() {
