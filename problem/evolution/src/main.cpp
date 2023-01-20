@@ -12,44 +12,47 @@ struct query {
   int age;
 };
 
-int dpth(int i, int d, std::vector<int> & depth, std::vector<std::set<int>> const& children) {
-  depth[i] = d;
-  int max_d = d;
-  for (auto c_i = children[i].begin(); c_i != children[i].end(); ++c_i) {
-    max_d = std::max(max_d, dpth(*c_i, d + 1, depth, children));
-  }
-  return max_d;
-}
-
-void dfs(int i, int d, int k, 
-      std::vector<int> & depth, std::vector<std::set<int>> const& children, 
-      std::vector<int> & path, std::vector<int> & chunk_path, 
-      std::vector<std::vector<uint16_t>> & anc_imm, std::vector<std::vector<uint16_t>> & anc_chunk) {
-  path.push_back(i);
-  if (depth[i] % k == 0) {
-    chunk_path.push_back(i);
-  }
-
-  for (size_t j = path.size(); j > 0; --j) {
-    anc_imm[i].push_back((uint16_t) path[j - 1]);
-    if (path[j - 1] != i && depth[path[j - 1]] % k == 0) {
-      break;
+int layer_anc(int species,
+      std::vector<int> const& layer,
+      std::vector<int> const& topo_a) {
+  // find the ancestor of species inside this layer
+  // std::cout << "finding " << topo_a[species] << " in [";
+  // for (auto it = layer.begin(); it != layer.end(); ++it) {
+  //   std::cout << topo_a[*it] << " ";
+  // }
+  // std::cout << "]" << std::endl;
+  
+  int lo = 0;
+  int up = layer.size();
+  
+  while (lo + 1 != up) {
+    int mid = (lo + up) / 2;
+    
+    if (topo_a[layer[mid]] > topo_a[species]) {
+      up = mid;
+    } else {
+      lo = mid;
     }
   }
+  
+  // std::cout << "returning " << layer[lo] << std::endl;
+  
+  return layer[lo];
+}
 
-  for (size_t j = chunk_path.size(); j > 0; --j) {
-    anc_chunk[i].push_back((uint16_t) chunk_path[j - 1]);
-  }
-
-
+int dfs(int i, int d, int t, 
+      std::vector<std::set<int>> const& children,
+      std::vector<int> & depth,
+      std::vector<int> & topo_a,
+      std::vector<int> & topo_order) {
+  topo_order.push_back(i);
+  depth[i] = d;
+  topo_a[i] = t;
+  
   for (auto c_i = children[i].begin(); c_i != children[i].end(); ++c_i) {
-    dfs(*c_i, d + 1, k, depth, children, path, chunk_path, anc_imm, anc_chunk);
+    t = dfs(*c_i, d + 1, t + 1, children, depth, topo_a, topo_order);
   }
-
-  path.pop_back();
-  if (depth[i] % k == 0) {
-    chunk_path.pop_back();
-  }
+  return t;
 }
 
 void testcase() {
@@ -86,17 +89,24 @@ void testcase() {
     if (parent[i] == -1)
       LUCA = i;
   }
-  std::vector<int> depth(n, 0);
-  int max_d = dpth(LUCA, 0, depth, children);
-  
-  std::vector<std::vector<uint16_t>> anc_chunk(n, std::vector<uint16_t>(0));
-  std::vector<std::vector<uint16_t>> anc_imm(n, std::vector<uint16_t>(0));
 
-  // k = chunk size
-  int k = (int) std::sqrt(max_d);
-  std::vector<int> path(0);
-  std::vector<int> chunk_path(0);
-  dfs(LUCA, 0, k, depth, children, path, chunk_path, anc_imm, anc_chunk);
+  // depth of the species in the tree of life
+  std::vector<int> depth(n, 0);
+  // topological index of the species
+  std::vector<int> topo_a(n);
+  // topological ordering of the species
+  std::vector<int> topo_order(0);
+  topo_order.reserve(n);
+  dfs(LUCA, 0, 0, children, depth, topo_a, topo_order);
+  
+  int max_d = *std::max_element(depth.begin(), depth.end());
+
+  // fill up layers (in topological ordering!)
+  std::vector<std::vector<int>> layers(max_d + 1);
+  for (int i = 0; i < n; ++i) {
+    int species_i = topo_order[i];
+    layers[depth[species_i]].push_back(species_i);
+  }
 
   std::vector<struct query> Q(q);
   for (int i = 0; i < q; ++i) {
@@ -107,51 +117,30 @@ void testcase() {
     Q[i].i = spec_i[s];
   }
 
-  // for (int i = 0; i < n; ++i) {
-  //   std::cout << "anc_imm[" << i << "]: ";
-  //   for (size_t j = 0; j < anc_imm[i].size(); ++j) {
-  //     std::cout << anc_imm[i][j] << " ";
-  //   }
-  //   std::cout << std::endl;
-  // }
-
-  // for (int i = 0; i < n; ++i) {
-  //   std::cout << "anc_chunk[" << i << "]: ";
-  //   for (size_t j = 0; j < anc_chunk[i].size(); ++j) {
-  //     std::cout << anc_chunk[i][j] << " ";
-  //   }
-  //   std::cout << std::endl;
-  // }
-
   for (int i = 0; i < q; ++i) {
     int species = Q[i].i;
     int target_age = Q[i].age;
+    
+    int lo_d = 0;
+    int up_d = depth[species];
+    
+    
+    while (lo_d != up_d) {
+      int mid_d = (lo_d + up_d) / 2;
+      
+      int anc = layer_anc(species, layers[mid_d], topo_a);
+      // std::cout << "(" << lo_d << ", " << up_d << ") -> mid_d: " << mid_d << std::endl;
 
-    // first search chunk ancestry
-    auto chunk_it = std::upper_bound(anc_chunk[species].begin(), anc_chunk[species].end(), target_age,
-      [age] (int target_age, uint16_t v) {
-        return target_age < age[v];
-      });
-    int chunk_i = chunk_it - anc_chunk[species].begin() - 1;
-
-    std::vector<uint16_t> imm;
-    if (chunk_i == -1) {
-      imm = anc_imm[species];
-    } else {
-      imm = anc_imm[anc_chunk[species][chunk_i]];
+      if (age[anc] <= target_age) {
+        up_d = mid_d;
+      } else {
+        // ancestor is too old
+        lo_d = mid_d + 1;
+      }
     }
-    
-    // std::cout << "species " << species << " chunk_i " << chunk_i << std::endl;
 
-    
-    // then search immediate ancestry
-    auto ancestor_it = std::upper_bound(imm.begin(), imm.end(), target_age,
-      [age] (int target_age, uint16_t v) {
-        return target_age < age[v];
-      });
-    int ancestor_i = ancestor_it - imm.begin() - 1;
-
-    std::cout << spec_name[imm[ancestor_i]] << " ";
+    int anc = layer_anc(species, layers[lo_d], topo_a);
+    std::cout << spec_name[anc] << " ";
   }
   std::cout << std::endl;
 }
