@@ -28,49 +28,27 @@ void test_case() {
     std::cin >> S[i];
   }
 
+  S.push_back(0);
+
   for (int i = 0; i < m; ++i) {
     std::cin >> W[i];
   }
-  std::sort(S.begin(), S.end());
-  std::sort(W.begin(), W.end());
+  std::sort(S.rbegin(), S.rend());
+  std::sort(W.rbegin(), W.rend());
 
-  std::vector<struct batch> batches;
-  batches.reserve(n);
-
-  // assign friends to batches
-  for (int i = 0; i < n; ++i) {
-    if (i == 0 || S[i] != S[i - 1]) {
-      batches.push_back({ .w = S[i], .b = 0, .f = 0 });
-    }
-    batches.back().f += 1;
-  }
-
-  // assign boxes to batches
-  size_t b_i = 0;
-  for (int i = 0; i < m; ++i) {
-    while (W[i] > batches[b_i].w) {
-      ++b_i;
-      if (b_i >= batches.size()) {
-        std::cout << "impossible" << std::endl;
-        return;
-      }
-    }
-    batches[b_i].b += 1;
+  if (W[0] > S[0]) {
+    std::cout << "impossible" << std::endl;
+    return;
   }
   
   long r = 0;
   long b = 0;
-  long f = 0;
-  
-  for (int i = batches.size() - 1; i >= 0; --i) {
-    f += batches[i].f;
-    long boxes_delivered = r * f;
-    
-    b += batches[i].b;
-    if (b > boxes_delivered) {
-      long rounds_to_complete = ((b - boxes_delivered) + f - 1) / f;
-      r += rounds_to_complete;
+  for (long f = 1; f <= n; ++f) {
+    while (b < m && W[b] > S[f]) {
+      ++b;
     }
+    // b boxes need to be carried by f friends
+    r = std::max(r, (b + f - 1) / f);
   }
   
   std::cout << (r * 3) - 1 << std::endl; 
