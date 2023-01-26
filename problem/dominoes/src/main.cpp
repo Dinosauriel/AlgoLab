@@ -1,15 +1,23 @@
 #include <iostream>
+#include <vector>
 
 void testcase() {
   int n;
   std::cin >> n;
-  int last_domino = 0;
+  
+  std::vector<int> h(n);
   for (int i = 0; i < n; ++i) {
-    int a;
-    std::cin >> a;
-    result += a;
+    std::cin >> h[i];
   }
-  std::cout << result << std::endl;
+  
+  long limit = 2;
+  long i_fallen = 1;
+  while (i_fallen <= n && i_fallen < limit) {
+    limit = std::max(limit, i_fallen + h[i_fallen - 1]);
+    ++i_fallen;
+  }
+
+  std::cout << i_fallen - 1 << std::endl;
 }
 
 int main() {
