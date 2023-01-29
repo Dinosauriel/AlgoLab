@@ -1,94 +1,113 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
-#include <cassert>
 #include <climits>
-#include <tuple>
 
-long value(long P, long H, long W, long p, long h, long w) {
-  return std::min(P, p) + std::min(H, h) + std::min(W, w);
-}
-
+struct A {
+  long p;
+  long h;
+};
 
 void test_case() {
   int n, m;
-  std::cin >> n;
-  std::cin >> m;
-  
-  long a, b;
-  std::cin >> a;
-  std::cin >> b;
-  
-  long P, H, W;
-  std::cin >> P;
-  std::cin >> H;
-  std::cin >> W;
-  
-  std::vector<std::tuple<long, long, long>> Potions(n + m);
-  std::vector<bool> Available(n + m, true);
+  std::cin >> n >> m;
+  long a, b, P, H, W;
+  std::cin >> a >> b >> P >> H >> W;
 
+  std::vector<struct A> pA(n);
+  std::vector<long> pB(m);
   
   for (int i = 0; i < n; ++i) {
-    long p_i;
-    long h_i;
-    std::cin >> p_i;
-    std::cin >> h_i;
-    Potions[i] = std::make_tuple(p_i, h_i, -a);
+    std::cin >> pA[i].p >> pA[i].h;
   }
   
-  for (int i = n; i < n + m; ++i) {
-    long w_i;
-    std::cin >> w_i;
-    Potions[i] = std::make_tuple(-b, 0, w_i);
+  for (int i = 0; i < m; ++i) {
+    std::cin >> pB[i];
   }
-
-  int res = 0;
   
-  long p = 0;
-  long h = 0;
-  long w = 0;
-  while (p < P || h < H || w < W) {
+  std::sort(pB.rbegin(), pB.rend());
+  
+  std::vector<std::vector<long>> max_P(n + 1, std::vector<long>(H + 1, -1));
+  // for exactly nA potions of type A and happiness exactly h, max_P[nA][h] power can be achieved at most
+  max_P[0][0] = 0;
+  
+  
+  // std::vector<std::vector<std::vector<int>>> trace(n + 1, std::vector<std::vector<int>>(H + 1));
+  
+  for (int i = 0; i < n; ++i) {
+    // std::cout << "potion A " << i << ": " << pA[i].p << " " << pA[i].h << std::endl;
+    auto old_max_P = max_P;
+    // auto old_trace = trace;
     
-    bool empty = std::none_of(Available.begin(), Available.end(), [](bool b){ return b; });
-    if (empty) {
-      res = -1;
+    for (int nA = 0; nA < n; ++nA) {
+      for (long h = 0; h <= H; ++h) {
+        if (old_max_P[nA][h] != -1) {
+          long new_h = std::min(H, h + pA[i].h);
+          long new_p = old_max_P[nA][h] + pA[i].p;
+
+          if (new_p > max_P[nA + 1][new_h]) {
+            max_P[nA + 1][new_h] = new_p;
+            // trace[nA + 1][new_h] = old_trace[nA][h];
+            // trace[nA + 1][new_h].push_back(i);
+          }
+        }
+      }
+    }
+  }
+  
+  // for (int i = 0; i < n + 1; ++i) {
+  //   for (int j = 0; j < H + 1; ++j) {
+  //     std::cout << max_P[i][j] << " ";
+  //   }
+  //   std::cout << std::endl;
+  // }
+  
+  int best = INT_MAX;
+  
+  for (int nA = 0; nA <= n; ++nA) {
+    long p = max_P[nA][H];
+    long w = nA * -a;
+    // std::cout << "using " << nA << " type A potions, power " << p << " can be reached" << std::endl;
+    // std::cout << "trace: ";
+    // long trace_sum = 0;
+    // for (int i: trace[nA][H]) {
+    //   std::cout << i << " ";
+      // trace_sum += pA[i].p;
+    // }
+    // std::cout << std::endl;
+    // if (p != -1 && trace_sum != p) {
+    //   std::cout << "WARNING: trace sum " << trace_sum << std::endl;
+    // }
+    if (p == -1 || p < P)
+      continue;
+
+    // calculate the number of B potions needed
+    int nB = -1;
+    for (int i = 0; i < m; ++i) {
+      w += pB[i];
+      p -= b;
+      if (p < P)
+        break;
+      
+      if (p >= P && w >= W) {
+        // we know that w >= W and p >= P
+        // all conditions met
+        nB = i + 1;
+        break;
+      }
+    }
+    
+    if (nB != -1) {
+      best = std::min(best, nA + nB);
       break;
     }
-    
-    // always take the potion that is most valuable to me
-    long best_value = LONG_MIN;
-    int mvp = -1;
-    //look for best potion
-    for (int i = 0; i < n + m; ++i) {
-      if (!Available[i]) {
-        //potion no longer available
-        // std::cout << "potion " << i << " no longer available" << std::endl;
-        continue;
-      }
-
-      long pot_p = std::get<0>(Potions[i]);
-      long pot_h = std::get<1>(Potions[i]);
-      long pot_w = std::get<2>(Potions[i]);
-      long value_i = value(P, H, W, p + pot_p, h + pot_h, w + pot_w)
-            - value(P, H, W, p, h, w);
-      
-      if (value_i > best_value) {
-        best_value = value_i;
-        mvp = i;
-      }
-    }
-    // take potion mvp
-    // std::cout << "potion " << mvp << " is mvp with value " << best_value << std::endl;
-    
-    p += std::get<0>(Potions[mvp]);
-    h += std::get<1>(Potions[mvp]);
-    w += std::get<2>(Potions[mvp]);
-    Available[mvp] = false;
-    
-    ++res;
   }
   
-  std::cout << res << std::endl; 
+  if (best == INT_MAX) {
+    std::cout << -1 << std::endl;
+    return;
+  }
+  std::cout << best << std::endl;
 }
 
 int main() {
